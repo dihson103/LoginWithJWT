@@ -20,7 +20,7 @@ public class JwtService implements IJwtService {
     public String generateToken(UserEntity user, Collection<SimpleGrantedAuthority> authorities){
         Algorithm algorithm = Algorithm.HMAC256(Secret_key.getBytes());
         return JWT.create()
-                .withSubject(user.getEmail())
+                .withSubject(user.getAccount())
                 .withExpiresAt(new Date(System.currentTimeMillis() + 50 * 60 *1000))
                 .withClaim("roles", authorities.stream().map(GrantedAuthority::getAuthority).toList())
                 .sign(algorithm);
@@ -30,7 +30,7 @@ public class JwtService implements IJwtService {
     public String generateRefreshToken(UserEntity user, Collection<SimpleGrantedAuthority> authorities){
         Algorithm algorithm = Algorithm.HMAC256(Secret_key.getBytes());
         return JWT.create()
-                .withSubject(user.getEmail())
+                .withSubject(user.getAccount())
                 .withExpiresAt(new Date(System.currentTimeMillis() + 70 * 60 *1000))
                 .sign(algorithm);
     }

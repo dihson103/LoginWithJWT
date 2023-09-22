@@ -3,12 +3,14 @@ package com.example.learningpage.controller;
 import com.example.learningpage.dto.ApiResponse;
 import com.example.learningpage.dto.user.UserCreateRequest;
 import com.example.learningpage.dto.user.UserDTO;
+import com.example.learningpage.entities.UserEntity;
 import com.example.learningpage.service.IUserService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -24,7 +26,8 @@ public class UserController {
 
     @RequestMapping
     @PreAuthorize("hasAuthority('User')")
-    public ApiResponse<List<UserDTO>> getUsers() {
+    public ApiResponse<List<UserDTO>> getUsers(@AuthenticationPrincipal UserEntity user) {
+        System.out.println(user.getUsername());
         List<UserDTO> userDTOS = userService.getUsers();
         return ApiResponse.<List<UserDTO>>builder()
                 .message("Get users success!")
@@ -34,8 +37,9 @@ public class UserController {
     }
 
     @RequestMapping("{username}")
-    @PreAuthorize("hasAuthority('Admin') || #username == authentication.principal")
+    @PreAuthorize("hasAuthority('Admin') || #username == authentication.getName()")
     public ApiResponse<UserDTO> getUser(@PathVariable String username) {
+        System.out.println("sdfsdfsd");
         UserDTO userDTO = userService.getUser(username);
         return ApiResponse.<UserDTO>builder()
                 .message("Get user with username: " + username + " success!")

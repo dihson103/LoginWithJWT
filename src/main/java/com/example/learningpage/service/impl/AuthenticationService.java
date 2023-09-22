@@ -4,7 +4,10 @@ import com.example.learningpage.dto.auth.AuthenticationRequest;
 import com.example.learningpage.dto.auth.AuthenticationResponse;
 import com.example.learningpage.dto.user.UserDTO;
 import com.example.learningpage.entities.Role;
+import com.example.learningpage.entities.Token;
+import com.example.learningpage.entities.TokenType;
 import com.example.learningpage.entities.UserEntity;
+import com.example.learningpage.repositories.TokenRepository;
 import com.example.learningpage.repositories.UserRepository;
 import com.example.learningpage.service.IAuthenticationService;
 import com.example.learningpage.service.IJwtService;
@@ -13,6 +16,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -27,6 +31,7 @@ public class AuthenticationService implements IAuthenticationService {
     private final AuthenticationManager authenticationManager;
     private final IJwtService jwtService;
     private final ModelMapper modelMapper;
+    private final TokenRepository tokenRepository;
 
     @Override
     public AuthenticationResponse authenticate(AuthenticationRequest authenticationRequest){
@@ -42,10 +47,36 @@ public class AuthenticationService implements IAuthenticationService {
         var jwtToken = jwtService.generateToken(user, authorities);
         var jwtRefreshToken = jwtService.generateRefreshToken(user, authorities);
 
+        revokedAllTokenBefore(user);
+        saveToken(user, jwtToken);
+
         return AuthenticationResponse.builder()
                 .token(jwtToken)
                 .refreshToken(jwtRefreshToken)
                 .userDTO(modelMapper.map(user, UserDTO.class))
                 .build();
+    }
+
+    private void saveToken(UserEntity user, String jwtToken){
+        var token = Token.builder()
+                .token(jwtToken)
+                .user(user)
+                .tokenType(TokenType.BEARER)
+                .expired(false)
+                .revoked(false)
+                .build();
+        tokenRepository.save(token);
+    }
+
+    private void revokedAllTokenBefore(UserEntity user){
+        var validUserTokens = tokenRepository.FindAllValidTokenByUser(user.getId());
+        if(validUserTokens.isEmpty()){
+            return;
+        }
+        validUserTokens.forEach(token -> {
+            token.setRevoked(true);
+            token.setExpired(true);
+        });
+        tokenRepository.saveAll(validUserTokens);
     }
 }

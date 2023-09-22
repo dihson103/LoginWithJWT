@@ -61,15 +61,13 @@ public class UserService implements IUserService {
             throw new DataAlreadyExistException("User is already exist. Please to change email or username!");
         }
         UserEntity userEntity = saveUser(modelMapper.map(userCreateRequest, UserEntity.class));
-        UserDTO userDTO = modelMapper.map(userEntity, UserDTO.class);
-        return userDTO;
+        return modelMapper.map(userEntity, UserDTO.class);
     }
 
     @Override
     public UserDTO getUserByEmail(String email) {
         UserEntity userEntity = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Can not find user"));
-        UserDTO userDTO = modelMapper.map(userEntity, UserDTO.class);
         return modelMapper.map(userEntity, UserDTO.class);
     }
 

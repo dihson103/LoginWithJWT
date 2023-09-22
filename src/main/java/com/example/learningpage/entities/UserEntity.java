@@ -43,6 +43,9 @@ public class UserEntity implements UserDetails {
     )
     private List<Role> roles;
 
+    @OneToMany(mappedBy = "user")
+    private List<Token> tokens;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return roles.stream()
