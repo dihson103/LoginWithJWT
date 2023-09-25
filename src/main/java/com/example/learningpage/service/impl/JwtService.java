@@ -32,6 +32,7 @@ public class JwtService implements IJwtService {
         return JWT.create()
                 .withSubject(user.getAccount())
                 .withExpiresAt(new Date(System.currentTimeMillis() + 70 * 60 *1000))
+                .withClaim("roles", authorities.stream().map(GrantedAuthority::getAuthority).toList())
                 .sign(algorithm);
     }
 }

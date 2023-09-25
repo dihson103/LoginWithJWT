@@ -1,5 +1,9 @@
 package com.example.learningpage.service.impl;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.JWTVerifier;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import com.example.learningpage.dto.auth.AuthenticationRequest;
 import com.example.learningpage.dto.auth.AuthenticationResponse;
 import com.example.learningpage.dto.user.UserDTO;
@@ -7,18 +11,25 @@ import com.example.learningpage.entities.Role;
 import com.example.learningpage.entities.Token;
 import com.example.learningpage.entities.TokenType;
 import com.example.learningpage.entities.UserEntity;
+import com.example.learningpage.exception.WrongTokenException;
 import com.example.learningpage.repositories.TokenRepository;
 import com.example.learningpage.repositories.UserRepository;
 import com.example.learningpage.service.IAuthenticationService;
 import com.example.learningpage.service.IJwtService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -33,6 +44,9 @@ public class AuthenticationService implements IAuthenticationService {
     private final ModelMapper modelMapper;
     private final TokenRepository tokenRepository;
 
+    @Value("${security.secretKey}")
+    private String Secret_key;
+
     @Override
     public AuthenticationResponse authenticate(AuthenticationRequest authenticationRequest){
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
@@ -40,6 +54,30 @@ public class AuthenticationService implements IAuthenticationService {
                 authenticationRequest.getPassword()
         ));
         UserEntity user = userRepository.findByEmail(authenticationRequest.getEmail()).orElseThrow();
+
+        return createTokenHandle(user);
+    }
+
+    @Override
+    public AuthenticationResponse refreshToken(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+        final String refreshToken;
+        final String username;
+        if (authHeader == null ||!authHeader.startsWith("Bearer ")) {
+            throw new WrongTokenException("Token is wrong.");
+        }
+        refreshToken = authHeader.substring(7);
+        Algorithm algorithm = Algorithm.HMAC256(Secret_key.getBytes());
+        JWTVerifier verifier = JWT.require(algorithm).build();
+        DecodedJWT decodedJWT = verifier.verify(refreshToken);
+        username = decodedJWT.getSubject();
+
+        UserEntity user = userRepository.findByAccount(username).orElseThrow();
+
+        return createTokenHandle(user);
+    }
+
+    private AuthenticationResponse createTokenHandle(UserEntity user){
         List<Role> roles = user.getRoles();
 
         Collection<SimpleGrantedAuthority> authorities = new ArrayList<>();
@@ -48,7 +86,8 @@ public class AuthenticationService implements IAuthenticationService {
         var jwtRefreshToken = jwtService.generateRefreshToken(user, authorities);
 
         revokedAllTokenBefore(user);
-        saveToken(user, jwtToken);
+        saveToken(user, jwtToken, true);
+        saveToken(user, jwtRefreshToken, false);
 
         return AuthenticationResponse.builder()
                 .token(jwtToken)
@@ -57,13 +96,14 @@ public class AuthenticationService implements IAuthenticationService {
                 .build();
     }
 
-    private void saveToken(UserEntity user, String jwtToken){
+    private void saveToken(UserEntity user, String jwtToken, Boolean isAccessToken){
         var token = Token.builder()
                 .token(jwtToken)
                 .user(user)
                 .tokenType(TokenType.BEARER)
                 .expired(false)
                 .revoked(false)
+                .isAccessToken(isAccessToken)
                 .build();
         tokenRepository.save(token);
     }

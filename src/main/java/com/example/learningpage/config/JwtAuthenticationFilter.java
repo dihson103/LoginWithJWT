@@ -41,7 +41,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String authorizationHeader = request.getHeader(AUTHORIZATION);
         if(authorizationHeader != null && authorizationHeader.startsWith("Bearer ")){
             try {
-                String token = authorizationHeader.substring("Bearer ".length());
+                String token = authorizationHeader.substring(7);
 
                 var isTokenValid = tokenRepository.findByToken(token)
                         .map(t -> !t.getExpired() && !t.getRevoked())
@@ -69,7 +69,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     throw new Exception("Token was revoked or expired.");
                 }
             }catch (Exception exception){
-                response.setHeader("error", exception.getMessage());
+                System.out.println("exception");
                 response.setStatus(FORBIDDEN.value());
                 Map<String, String> error = new HashMap<>();
                 error.put("message", exception.getMessage());

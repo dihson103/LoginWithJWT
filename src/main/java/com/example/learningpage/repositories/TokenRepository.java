@@ -15,4 +15,9 @@ public interface TokenRepository extends JpaRepository<Token, Integer> {
     List<Token> FindAllValidTokenByUser(Integer userId);
 
     Optional<Token> findByToken(String token);
+
+    @Query("""
+        SELECT t FROM Token t WHERE t.user.account = :username
+    """)
+    List<Token> findByUserName(String username);
 }

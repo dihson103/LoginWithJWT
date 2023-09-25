@@ -25,6 +25,8 @@ public class Token {
 
     private Boolean revoked;
 
+    private Boolean isAccessToken;
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     private UserEntity user;
